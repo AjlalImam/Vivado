@@ -1,0 +1,166 @@
+module RGB_PWM_Control (
+    input wire clk,
+    input wire rst,
+    input wire [6:0] sw, // 4 switches for input (0-15)
+    output reg pwm_red,
+    output reg pwm_blue,
+    output reg [7:0] SEG,           // 7 Segments of Displays
+    output reg [7:0] AN
+        
+);
+
+
+
+    reg [7:0] counter = 8'b0000_0000; // Counter for PWM period
+    reg [6:0] threshold_low = 7'b0000100;    // Adjust as needed for your application
+    reg [6:0] threshold_medium = 7'b0010000; // Adjust as needed for your application
+
+    parameter PWM_BITS = 8; // Number of bits for PWM resolution
+
+        
+    reg [3:0] first;  // decimal LSB seven segment
+    reg [3:0] second; //Tens  seven segment
+    reg [3:0] third; //negative sign seven segment
+    
+    reg [3:0] seg;
+    
+    reg [6:0] comp;  // a temporary reg that holds the complement if negative value
+    
+
+
+    reg [17:0] Counter=0;
+    always@(posedge clk)
+    begin
+    Counter<=Counter+1;
+    end
+    
+   always @ (*)
+begin
+
+    case(seg)
+    0 : SEG = 8'b11000000; //0
+    1 : SEG = 8'b11111001; //1
+    2 : SEG = 8'b10100100; //2
+    3 : SEG = 8'b10110000; //3
+    4 : SEG = 8'b10011001; //4
+    5 : SEG = 8'b10010010; //5
+    6 : SEG = 8'b10000010; //6
+    7 : SEG = 8'b11111000; //7
+    8 : SEG = 8'b10000000; //8
+    9 : SEG = 8'b10011000; //9
+    10: SEG = 8'b10001000; //A
+    11: SEG = 8'b10000011; //B
+    12: SEG = 8'b11000110; //C
+    13: SEG = 8'b10100001; //D
+    14: SEG = 8'b11111111; //null
+    15: SEG = 8'b10111111; //-
+    
+    endcase
+
+
+    if (sw[6])  //negative temp
+        begin
+            third = 15;
+            comp = ~sw + 1;
+
+        end
+    else
+        begin
+            third = 14;
+            comp = sw;
+        end
+
+    second = comp / 10;           // Tens value of temp data
+    first = comp % 10; 
+    
+    
+
+
+
+
+end 
+    
+always @ (*)
+    begin
+    
+        case (Counter[17:16])
+        
+            3'b00: begin
+                        seg <= first;
+                        AN <= 8'b11111110;
+                    end
+            3'b01: begin
+                        seg <= second;
+                        AN <= 8'b11111101;
+                        
+                    end
+            3'b10: begin
+                        seg <= third;
+                        AN <= 8'b11111011;
+                        
+                    end
+
+            default: begin AN <=8'b11111111; end
+    
+        endcase
+    end
+
+    always @(posedge clk  ) begin
+        if (rst) 
+        begin
+            counter <= 8'b0000_0000;
+            pwm_red <= 8'b0000_0000;
+            pwm_blue <= 8'b0000_0000;
+        end 
+        else 
+        begin
+            counter <= counter + 1;
+
+            if (~sw[6])
+                begin 
+                // Determine PWM based on input range
+                    if (sw <= threshold_low) 
+                        begin
+                            pwm_red <= (counter < (threshold_low * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                            pwm_blue =0;
+                        end 
+                    else if (sw <= threshold_medium) 
+                        begin
+                            pwm_red <= (counter < (threshold_medium * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                            pwm_blue =0;
+                        end 
+                    else 
+                        begin
+                            // Always ON for the high range
+                            pwm_red <= 8'b1111_1111;
+                            pwm_blue =0;
+                        end
+                end
+            else
+                begin
+                    // Determine PWM based on input range
+                    if (comp <= threshold_low) 
+                        begin
+                            pwm_blue <= (counter < (threshold_low * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                            pwm_red =0;
+                        end 
+                    else if (comp <= threshold_medium) 
+                        begin
+                            pwm_blue <= (counter < (threshold_medium * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                            pwm_red =0;
+                        end 
+                    else 
+                        begin
+                            // Always ON for the high range
+                            pwm_blue <= 8'b1111_1111;
+                            pwm_red =0;
+                        end
+                end
+
+            // Update counter
+            if (counter == (2**PWM_BITS - 1)) begin
+                counter <= 8'b0000_0000;
+            end
+        end
+    end
+endmodule

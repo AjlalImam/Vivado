@@ -1,0 +1,191 @@
+module RGB_PWM_Control (
+    input wire clk,
+    input wire rst,
+    input wire [6:0] sw, // 7 switches for input (0-15)
+    output reg pwm_red,
+    output reg pwm_blue
+        
+);
+
+    reg [7:0] counter = 8'b0000_0000; // Counter for PWM period
+    reg [6:0] threshold_low = 7'b0000100;    // Adjust as needed for your application
+    reg [6:0] threshold_medium = 7'b0001000; // Adjust as needed for your application
+
+    parameter PWM_BITS = 8; // Number of bits for PWM resolution
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) 
+        begin
+            counter <= 8'b0000_0000;
+            pwm_red <= 8'b0000_0000;
+            pwm_blue <= 8'b0000_0000;
+        end 
+        else 
+        begin
+            counter <= counter + 1;
+
+            if (~sw[7])
+                begin 
+                // Determine PWM based on input range
+                    if (sw <= threshold_low) 
+                        begin
+                            pwm_red <= (counter < (threshold_low * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                        end 
+                    else if (sw <= threshold_medium) 
+                        begin
+                            pwm_red <= (counter < (threshold_medium * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                        end 
+                    else 
+                        begin
+                            // Always ON for the high range
+                            pwm_red <= 8'b1111_1111;
+                        end
+                end
+            else
+                begin
+                    // Determine PWM based on input range
+                    pwm_red <= 0;
+                    if (sw <= threshold_low)
+                        begin
+                            pwm_blue <= (counter < (threshold_low * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                        end 
+                    else if (sw  <= threshold_medium) 
+                        begin
+                            pwm_blue <= (counter < (threshold_medium * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                        end 
+                    else 
+                        begin
+                            // Always ON for the high range
+                            pwm_blue <= 8'b1111_1111;
+                        end
+                end
+
+            // Update counter
+            if (counter == (2**PWM_BITS - 1)) begin
+                counter <= 8'b0000_0000;
+            end
+        end
+    end
+endmodule
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+module SevenSegment (
+    input wire clk,
+    input wire rst,
+    input wire neg,
+    input wire [3:0]sw, // 4 switches for input (0-15)
+    output reg pwm_red,
+    output reg pwm_blue,
+    output reg [3:0] led_out
+);
+
+    reg [7:0] counter = 8'b0000_0000; // Counter for PWM period
+    reg [3:0] threshold_low = 4'b0100;    // Adjust as needed for your application
+    reg [3:0] threshold_medium = 4'b1000; // Adjust as needed for your application
+    reg carry0;
+    reg carry1;
+    reg carry2;
+    reg carry3;
+    reg [3:0] temp;
+//    reg [3:0] inter = 4'b0000;
+    
+
+    parameter PWM_BITS = 8; // Number of bits for PWM resolution
+    
+    always @(posedge clk or posedge rst or posedge neg or posedge sw) begin
+        if (rst) begin
+            counter <= 8'b0000_0000;
+            pwm_red <= 8'b0000_0000;
+            pwm_blue <= 8'b0000_0000;
+        end else begin
+            counter <= counter + 1;
+
+            if (neg) begin
+                // Determine PWM based on input ranged
+                if (sw <= threshold_low) begin
+                
+                    pwm_blue <= (counter < (threshold_low * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                    pwm_red <= 8'b0000_0000;
+                    //led_out <= sw;  // Assign sw to led_out in this block
+                    
+//                    led_out[0] <= sw[0];
+//                    led_out[1] <= sw[1];
+//                    led_out[2] <= sw[2];
+//                    led_out[3] <= sw[3]; 
+                    temp <= (~sw)+1;
+                    led_out <= temp;
+                    
+                    {carry0,led_out[0]} <= ~sw[0] +1;
+                    {carry1,led_out[1]} <= ~sw[1] + carry0;
+                    {carry2,led_out[2]} <= ~sw[2] + carry1;
+                    {carry3,led_out[3]} <= ~sw[3] + carry2;
+                    
+                end else if (sw <= threshold_medium) begin
+                    pwm_blue <= (counter < (threshold_medium * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                    pwm_red <= 8'b0000_0000;
+                    //led_out <= sw;  // Assign sw to led_out in this block
+                    
+//                     led_out[0] <= sw[0];
+//                     led_out[1] <= sw[1];
+//                     led_out[2] <= sw[2];
+//                     led_out[3] <= sw[3];
+                    {carry0,led_out[0]} <= ~sw[0] +1;
+                    {carry1,led_out[1]} <= ~sw[1] + carry0;
+                    {carry2,led_out[2]} <= ~sw[2] + carry1;
+                    {carry3,led_out[3]} <= ~sw[3] + carry2;
+                end else begin
+                    // Always ON for the high range
+                    pwm_blue <= 8'b1111_1111;
+                    pwm_red <= 8'b0000_0000;
+                end
+            end else begin
+                // Determine PWM based on input range
+                if (sw <= threshold_low) begin
+                    pwm_red <= (counter < (threshold_low * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                    pwm_blue <= 8'b0000_0000;
+                    //led_out <= sw;  // Assign sw to led_out in this block
+                    led_out[0] <= sw[0];
+                    led_out[1] <= sw[1];
+                    led_out[2] <= sw[2];
+                     led_out[3] <= sw[3];
+                end else if (sw <= threshold_medium) begin
+                    pwm_red <= (counter < (threshold_medium * 8)) ? 8'b1111_1111 : 8'b0000_0000;
+                    pwm_blue <= 8'b0000_0000;
+                    led_out[0] <= sw[0];
+                    led_out[1] <= sw[1];
+                    led_out[2] <= sw[2];
+                    led_out[3] <= sw[3];
+                end else begin
+                    // Always ON for the high range
+                    pwm_red <= 8'b1111_1111;
+                    pwm_blue <= 8'b0000_0000;
+                end
+            end
+
+            // Update counter
+            if (counter == (2**PWM_BITS - 1)) begin
+                counter <= 8'b0000_0000;
+            end
+        end
+    end
+
+endmodule
